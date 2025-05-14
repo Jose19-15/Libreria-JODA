@@ -1,0 +1,145 @@
+/* Paleta de colores inspirada en el dashboard de la imagen */
+:root {
+  --color-bg-main: #231942;
+  --color-bg-card: #2d2350;
+  --color-primary: #f7b801;
+  --color-secondary: #6a4cff;
+  --color-accent1: #00cfff;
+  --color-accent2: #ff2e63;
+  --color-accent3: #ff6f3c;
+  --color-accent4: #43e97b;
+  --color-text-main: #fff;
+  --color-text-muted: #bdbdbd;
+  --color-border: #3a2e5c;
+}
+
+body {
+  background: linear-gradient(135deg, #231942 0%, #2d2350 100%);
+  color: var(--color-text-main);
+  font-family: 'Segoe UI', 'Roboto', Arial, sans-serif;
+  margin: 0;
+  min-height: 100vh;
+}
+
+.card {
+  background: var(--color-bg-card);
+  border-radius: 18px;
+  box-shadow: 0 4px 24px 0 rgba(0,0,0,0.18);
+  padding: 24px 20px;
+  margin: 16px 0;
+  border: 1px solid var(--color-border);
+  transition: box-shadow 0.2s;
+}
+.card:hover {
+  box-shadow: 0 8px 32px 0 rgba(0,0,0,0.28);
+}
+
+.card input[type="text"], .card input[type="password"] {
+  font-size: 1rem;
+  margin-bottom: 0;
+}
+
+#login-error {
+  color: #e63946;
+  font-weight: bold;
+}
+
+.header-stats {
+  display: flex;
+  gap: 18px;
+  margin-bottom: 32px;
+}
+.header-stat {
+  flex: 1;
+  background: linear-gradient(90deg, var(--color-primary), var(--color-accent1));
+  color: #231942;
+  border-radius: 12px;
+  padding: 18px 0;
+  text-align: center;
+  font-size: 1.2rem;
+  font-weight: bold;
+  box-shadow: 0 2px 12px 0 rgba(0,0,0,0.10);
+}
+.header-stat:nth-child(2) {
+  background: linear-gradient(90deg, var(--color-secondary), var(--color-accent2));
+  color: #fff;
+}
+.header-stat:nth-child(3) {
+  background: linear-gradient(90deg, var(--color-accent4), var(--color-accent1));
+  color: #231942;
+}
+.header-stat:nth-child(4) {
+  background: linear-gradient(90deg, var(--color-accent2), var(--color-accent3));
+  color: #fff;
+}
+
+/* Ejemplo de estilos para gráficos circulares y de barras */
+.chart-bar {
+  background: none;
+  border-radius: 8px;
+  height: 180px;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+.chart-bar .bar {
+  width: 18px;
+  border-radius: 6px 6px 0 0;
+  background: linear-gradient(180deg, var(--color-accent1), var(--color-accent2));
+  transition: background 0.2s;
+}
+.chart-bar .bar.alt1 {
+  background: linear-gradient(180deg, var(--color-accent3), var(--color-primary));
+}
+.chart-bar .bar.alt2 {
+  background: linear-gradient(180deg, var(--color-secondary), var(--color-accent4));
+}
+
+.chart-donut {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: conic-gradient(var(--color-primary) 0 40%, var(--color-accent1) 40% 70%, var(--color-accent2) 70% 100%);
+  margin: 0 auto;
+  box-shadow: 0 2px 12px 0 rgba(0,0,0,0.10);
+}
+
+/* Botones y detalles */
+.button {
+  background: linear-gradient(90deg, var(--color-accent2), var(--color-accent1));
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 24px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.button:hover {
+  background: linear-gradient(90deg, var(--color-accent1), var(--color-accent2));
+}
+
+/* Scrollbar personalizado */
+::-webkit-scrollbar {
+  width: 8px;
+  background: var(--color-bg-card);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-accent1);
+  border-radius: 8px;
+}
+
+/* Otros detalles visuales */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--color-primary);
+  font-weight: bold;
+}
+a {
+  color: var(--color-accent1);
+  text-decoration: none;
+}
+a:hover {
+  color: var(--color-accent2);
+}
+
+/* Puedes seguir agregando clases para widgets, tablas, etc. usando esta paleta */
