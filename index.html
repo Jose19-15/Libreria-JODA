@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Control de Inventario</title>
+    <link rel="stylesheet" href="static/styles.css">
+</head>
+<body>
+    <header style="padding: 32px 0 16px 0; text-align: center;">
+        <h1 style="font-size: 2.5rem; margin-bottom: 0;">Mi Empresa</h1>
+        <p style="color: var(--color-text-muted); font-size: 1.1rem;">Sistema de Control de Inventario</p>
+    </header>
+    <main style="max-width: 900px; margin: 0 auto;">
+        <section class="header-stats" style="display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; margin-bottom: 32px;">
+            <div class="header-stat" onclick="location.href='templates/inventario.html'" style="cursor:pointer;">Inventario</div>
+            <div class="header-stat" onclick="location.href='templates/ventas.html'" style="cursor:pointer;">Ventas</div>
+            <div class="header-stat" onclick="location.href='templates/compras.html'" style="cursor:pointer;">Compras</div>
+            <div class="header-stat" onclick="location.href='templates/clientes.html'" style="cursor:pointer;">Clientes</div>
+            <div class="header-stat" onclick="location.href='templates/proveedores.html'" style="cursor:pointer;">Proveedores</div>
+            <div class="header-stat" onclick="location.href='templates/factura.html'" style="cursor:pointer;">Facturación</div>
+            <div class="header-stat" onclick="location.href='templates/contabilidad.html'" style="cursor:pointer;">Contabilidad</div>
+            <div class="header-stat" onclick="location.href='templates/movimientos.html'" style="cursor:pointer;">Movimientos</div>
+            <div class="header-stat" onclick="location.href='templates/configuraciones.html'" style="cursor:pointer;">Configuraciones</div>
+            <div class="header-stat" onclick="location.href='templates/dashboard.html'" style="cursor:pointer;">Dashboard</div>
+        </section>
+        <section style="display: flex; flex-wrap: wrap; gap: 24px; justify-content: center;">
+            <a href="templates/inventario.html" class="card" style="width: 220px; text-align: center; text-decoration: none;">
+                <img src="icons/inventario.png" alt="Inventario" style="width:48px; margin-bottom:10px;">
+                <h2>Inventario</h2>
+                <p>Gestión de productos y stock.</p>
+            </a>
+            <a href="templates/ventas.html" class="card" style="width: 220px; text-align: center; text-decoration: none;">
+                <img src="icons/ventas.png" alt="Ventas" style="width:48px; margin-bottom:10px;">
+                <h2>Ventas</h2>
+                <p>Registro y control de ventas.</p>
+            </a>
+            <a href="templates/compras.html" class="card" style="width: 220px; text-align: center; text-decoration: none;">
+                <img src="icons/compras.png" alt="Compras" style="width:48px; margin-bottom:10px;">
+                <h2>Compras</h2>
+                <p>Administración de compras.</p>
+            </a>
+            <a href="templates/clientes.html" class="card" style="width: 220px; text-align: center; text-decoration: none;">
+                <img src="icons/clientes.png" alt="Clientes" style="width:48px; margin-bottom:10px;">
+                <h2>Clientes</h2>
+                <p>Gestión de clientes.</p>
+            </a>
+            <a href="templates/proveedores.html" class="card" style="width: 220px; text-align: center; text-decoration: none;">
+                <img src="icons/proveedores.png" alt="Proveedores" style="width:48px; margin-bottom:10px;">
+                <h2>Proveedores</h2>
+                <p>Administración de proveedores.</p>
+            </a>
+            <a href="templates/factura.html" class="card" style="width: 220px; text-align: center; text-decoration: none;">
+                <img src="icons/factura.png" alt="Facturación" style="width:48px; margin-bottom:10px;">
+                <h2>Facturación</h2>
+                <p>Emisión y control de facturas.</p>
+            </a>
+            <a href="templates/contabilidad.html" class="card" style="width: 220px; text-align: center; text-decoration: none;">
+                <img src="icons/contabilidad.png" alt="Contabilidad" style="width:48px; margin-bottom:10px;">
+                <h2>Contabilidad</h2>
+                <p>Resumen contable.</p>
+            </a>
+            <a href="templates/movimientos.html" class="card" style="width: 220px; text-align: center; text-decoration: none;">
+                <img src="icons/ingreso.png" alt="Movimientos" style="width:48px; margin-bottom:10px;">
+                <h2>Movimientos</h2>
+                <p>Registro de movimientos.</p>
+            </a>
+        
+            <a href="templates/configuraciones.html" class="card" style="width: 220px; text-align: center; text-decoration: none;">
+                <img src="icons/configuracion.png" alt="Configuraciones" style="width:48px; margin-bottom:10px;">
+                <h2>Configuraciones</h2>
+                <p>Opciones de configuración.</p>
+            </a>
+            <a href="templates/dashboard.html" class="card" style="width: 220px; text-align: center; text-decoration: none;">
+                <img src="icons/dashboard.png" alt="Dashboard" style="width:48px; margin-bottom:10px;">
+                <h2>Dashboard</h2>
+                <p>Vista general del sistema.</p>
+            </a>
+        </section>
+    </main>
+    <footer style="text-align: center; color: var(--color-text-muted); margin-top: 48px; font-size: 0.95rem;">
+        &copy; 2025 Mi Empresa. Todos los derechos reservados.
+    </footer>
+</body>
+</html>

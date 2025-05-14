@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iniciar sesión</title>
+    <link rel="stylesheet" href="static/styles.css">
+</head>
+<body>
+    <div style="text-align:center;margin-top:32px;">
+        <a href="index.html" style="text-decoration:none;display:inline-flex;align-items:center;gap:12px;">
+            <img src="logo/logo.png" alt="Logo Libreria JODA" style="height: 80px;width:80px;vertical-align:middle;">
+            <span style="font-size:2rem;font-weight:bold;color:#fbfbfb;letter-spacing:1px;">Libreria JODA</span>
+        </a>
+    </div>
+    <div class="card" style="max-width:400px;margin:60px auto;text-align:center;">
+        <h1>Iniciar sesión</h1>
+        <form id="login-form" style="display:flex;flex-direction:column;gap:18px;">
+            <input type="text" id="username" placeholder="Usuario" required style="padding:10px;border-radius:8px;border:1px solid #bbb;">
+            <input type="password" id="password" placeholder="Contraseña" required style="padding:10px;border-radius:8px;border:1px solid #bbb;">
+            <button type="submit" class="button" style="padding:10px 0;">Entrar</button>
+        </form>
+        <div id="login-error" style="color:#e63946;margin-top:12px;display:none;"></div>
+    </div>
+    <script>
+    // Usuario y contraseña por defecto (demo)
+    const USER = 'jose';
+    const PASS = 'jose123';
+    document.getElementById('login-form').onsubmit = function(e) {
+        e.preventDefault();
+        const u = document.getElementById('username').value;
+        const p = document.getElementById('password').value;
+        if (u === USER && p === PASS) {
+            localStorage.setItem('auth', 'ok');
+            window.location.href = 'index.html';
+        } else {
+            document.getElementById('login-error').textContent = 'Usuario o contraseña incorrectos';
+            document.getElementById('login-error').style.display = 'block';
+        }
+    };
+    </script>
+</body>
+</html>
