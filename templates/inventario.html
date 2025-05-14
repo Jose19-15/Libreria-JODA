@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventario</title>
+    <link rel="stylesheet" href="../static/styles.css">
+    <!--
+        NOTA:
+        Para que todas las funciones (como cargar archivos Excel con fetch) funcionen en cualquier navegador,
+        abre este proyecto usando un servidor local.
+        Ejemplo rápido: abre una terminal en la carpeta raíz y ejecuta:
+            python -m http.server
+        Luego accede a http://localhost:8000/templates/inventario.html
+        Si abres el archivo directamente (file://), algunas funciones pueden no funcionar por seguridad del navegador.
+    -->
+</head>
+<body>
+    <script>
+    if (localStorage.getItem('auth') !== 'ok') {
+        window.location.href = '../login.html';
+    }
+    </script>
+    <a href="../index.html" style="display:inline-block;margin:16px 0 0 16px;padding:8px 18px;background:#231942;color:#fff;border-radius:6px;text-decoration:none;font-weight:bold;">&larr; Volver al inicio</a>
+    <div class="card" style="max-width:900px;margin:40px auto 24px auto;text-align:center;">
+        <img src="../icons/inventario.png" alt="Inventario" style="width:56px;margin-bottom:10px;">
+        <h1>Inventario</h1>
+        <p>Bienvenido a la sección de inventario. Aquí podrás gestionar los productos y el stock.</p>
+    </div>
+    <div class="card" style="max-width:100vw;width:98vw;margin:0 auto 40px auto;overflow-x:auto;">
+        <h2 style="text-align:left;">Listado de productos</h2>
+        <div style="text-align:right;margin-bottom:12px;">
+            <button id="exportar-inventario-pdf" class="button" style="padding:8px 22px;">Generar PDF</button>
+            <button id="limpiar-tabla-inventario" class="button" style="padding:8px 22px;background:#f44336;color:#fff;margin-left:8px;">Limpiar tabla</button>
+        </div>
+        <div id="tabla-inventario" style="overflow-x:auto;"></div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <script>
+    function autoSizeColumns(table) {
+        const ths = table.querySelectorAll('th');
+        const tds = table.querySelectorAll('td');
+        ths.forEach((th, i) => {
+            let max = th.textContent.length;
+            tds.forEach(td => {
+                if (td.cellIndex === i) {
+                    max = Math.max(max, td.textContent.length);
+                }
+            });
+            th.style.minWidth = (max * 10 + 30) + 'px';
+        });
+    }
+
+    function sortInventarioDataPorID(tabla) {
+        if (!tabla || tabla.length < 2) return tabla;
+        const idxID = tabla[0].findIndex(h => h.toLowerCase() === 'id');
+        if (idxID === -1) return tabla;
+        // Copia el encabezado y ordena el resto
+        const encabezado = tabla[0];
+        const filas = tabla.slice(1).sort((a, b) => {
+            const idA = parseInt(a[idxID], 10);
+            const idB = parseInt(b[idxID], 10);
+            return (isNaN(idA) ? 0 : idA) - (isNaN(idB) ? 0 : idB);
+        });
+        return [encabezado, ...filas];
+    }
+
+    function crearModalEdicionProducto(productoObj, idx, onSave) {
+        // Crear modal flotante
+        let modal = document.createElement('div');
+        modal.style.position = 'fixed';
+        modal.style.top = '0';
+        modal.style.left = '0';
+        modal.style.width = '100vw';
+        modal.style.height = '100vh';
+        modal.style.background = 'rgba(0,0,0,0.25)';
+        modal.style.display = 'flex';
+        modal.style.alignItems = 'center';
+        modal.style.justifyContent = 'center';
+        modal.style.zIndex = '9999';
+        modal.innerHTML = `
+        <div style="background:#fff;color:#231942;padding:32px 28px 20px 28px;border-radius:16px;min-width:320px;box-shadow:0 8px 32px 0 rgba(0,0,0,0.18);position:relative;max-width:95vw;">
+            <h3 style='margin-top:0;margin-bottom:18px;color:#5e60ce;'>Editar producto</h3>
+            <form id='form-editar-prod'>
+                <label>Producto<br><input name='producto' type='text' value='${productoObj.producto ?? ''}' style='width:100%;padding:7px 8px;margin-bottom:10px;border-radius:6px;border:1px solid #bbb;'></label><br>
+                <label>Categoría<br><input name='categoria' type='text' value='${productoObj.categoria ?? ''}' style='width:100%;padding:7px 8px;margin-bottom:10px;border-radius:6px;border:1px solid #bbb;'></label><br>
+                <label>Precio de compra<br><input name='precio de compra' type='number' min='0' step='0.01' value='${productoObj["precio de compra"] ?? ''}' style='width:100%;padding:7px 8px;margin-bottom:10px;border-radius:6px;border:1px solid #bbb;'></label><br>
+                <label>Precio de venta<br><input name='precio de venta' type='number' min='0' step='0.01' value='${productoObj["precio de venta"] ?? ''}' style='width:100%;padding:7px 8px;margin-bottom:10px;border-radius:6px;border:1px solid #bbb;'></label><br>
+                <label>Cantidad<br><input name='cantidad' type='number' min='0' step='1' value='${productoObj.cantidad ?? ''}' style='width:100%;padding:7px 8px;margin-bottom:10px;border-radius:6px;border:1px solid #bbb;'></label><br>
+                <div style='display:flex;gap:12px;justify-content:flex-end;margin-top:10px;'>
+                    <button type='button' id='btn-cancelar-modal' style='padding:7px 18px;background:#bdbdbd;color:#231942;border:none;border-radius:6px;font-weight:bold;cursor:pointer;'>Cancelar</button>
+                    <button type='submit' style='padding:7px 18px;background:#43e97b;color:#fff;border:none;border-radius:6px;font-weight:bold;cursor:pointer;'>Guardar</button>
+                </div>
+            </form>
+        </div>`;
+        document.body.appendChild(modal);
+        document.getElementById('btn-cancelar-modal').onclick = () => document.body.removeChild(modal);
+        document.getElementById('form-editar-prod').onsubmit = function(e) {
+            e.preventDefault();
+            const fd = new FormData(this);
+            onSave({
+                producto: fd.get('producto'),
+                categoria: fd.get('categoria'),
+                'precio de compra': fd.get('precio de compra'),
+                'precio de venta': fd.get('precio de venta'),
+                cantidad: fd.get('cantidad')
+            });
+            document.body.removeChild(modal);
+        };
+    }
+
+    function renderTabla(json) {
+        json = sortInventarioDataPorID(json);
+        const headers = [
+            'ID', 'Producto', 'Categoria', 'Precio de Compra', 'Precio de Venta', 'Ganancia', 'Cantidad'
+        ];
+        let html = `<table id="tabla-pro" class="tabla-inventario-pro" style="width:100%;border-collapse:separate;border-spacing:0 6px;">`;
+        html += '<thead><tr>';
+        headers.forEach(cell => {
+            html += `<th style="background:linear-gradient(90deg,var(--color-accent1),var(--color-accent2));color:#231942;padding:12px 8px;border:none;font-size:1.05rem;text-align:left;box-shadow:0 2px 8px 0 rgba(0,0,0,0.10);">${cell}</th>`;
+        });
+        html += '</tr></thead><tbody>';
+        for(let i=1; i<json.length; i++) {
+            let row = json[i];
+            // Quitar filas vacías (todas las celdas vacías o nulas)
+            if (!row || row.every(cell => cell === undefined || cell === null || String(cell).trim() === '')) continue;
+            let idx = {};
+            json[0].forEach((h, j) => { idx[h.toLowerCase()] = j; });
+            let id = row[idx['id']] ?? '';
+            let producto = row[idx['producto']] ?? '';
+            let categoria = row[idx['categoria']] ?? '';
+            let precioCompra = parseFloat(row[idx['precio de compra']] ?? 0) || 0;
+            let precioVenta = parseFloat(row[idx['precio de venta']] ?? 0) || 0;
+            let ganancia = precioVenta - precioCompra;
+            let cantidad = parseFloat(row[idx['cantidad']] ?? 0) || 0;
+            html += `<tr style="background:var(--color-bg-card);border-radius:12px;box-shadow:0 2px 8px 0 rgba(0,0,0,0.10);transition:box-shadow 0.2s;">`;
+            html += `<td style="padding:10px 8px;">${id}</td>`;
+            html += `<td style="padding:10px 8px;cursor:pointer;" class="td-editable-producto" data-row="${i}">${producto}</td>`;
+            html += `<td style="padding:10px 8px;">${categoria}</td>`;
+            html += `<td style="padding:10px 8px;">${precioCompra.toLocaleString('es-MX',{style:'currency',currency:'MXN'})}</td>`;
+            html += `<td style="padding:10px 8px;">${precioVenta.toLocaleString('es-MX',{style:'currency',currency:'MXN'})}</td>`;
+            html += `<td style="padding:10px 8px;">${ganancia.toLocaleString('es-MX',{style:'currency',currency:'MXN'})}</td>`;
+            html += `<td style="padding:10px 8px;">${cantidad}</td>`;
+            html += '</tr>';
+        }
+        html += '</tbody></table>';
+        setTimeout(() => {
+            document.querySelectorAll('.td-editable-producto').forEach(td => {
+                td.ondblclick = function() {
+                    const rowIdx = parseInt(this.getAttribute('data-row'));
+                    if (!json[rowIdx]) return;
+                    let idx = {};
+                    json[0].forEach((h, j) => { idx[h.toLowerCase()] = j; });
+                    let prodObj = {
+                        producto: json[rowIdx][idx['producto']],
+                        categoria: json[rowIdx][idx['categoria']],
+                        'precio de compra': json[rowIdx][idx['precio de compra']],
+                        'precio de venta': json[rowIdx][idx['precio de venta']],
+                        cantidad: json[rowIdx][idx['cantidad']]
+                    };
+                    crearModalEdicionProducto(prodObj, rowIdx, (nuevo) => {
+                        json[rowIdx][idx['producto']] = nuevo.producto;
+                        json[rowIdx][idx['categoria']] = nuevo.categoria;
+                        json[rowIdx][idx['precio de compra']] = nuevo['precio de compra'];
+                        json[rowIdx][idx['precio de venta']] = nuevo['precio de venta'];
+                        json[rowIdx][idx['cantidad']] = nuevo.cantidad;
+                        inventarioData = json;
+                        actualizarTabla();
+                    });
+                };
+            });
+        }, 100);
+        return html;
+    }
+
+    let inventarioData = [];
+
+    async function cargarInventario() {
+        let inventarioLS = JSON.parse(localStorage.getItem('inventario') || 'null');
+        if (inventarioLS && Array.isArray(inventarioLS) && inventarioLS.length > 0) {
+            // Migrar datos antiguos: si hay 'entrada' o 'existencia', convertir a 'cantidad'
+            inventarioLS.forEach(item => {
+                if (item['entrada'] !== undefined) {
+                    item['cantidad'] = item['entrada'];
+                    delete item['entrada'];
+                }
+                if (item['existencia'] !== undefined) {
+                    item['cantidad'] = item['existencia'];
+                    delete item['existencia'];
+                }
+            });
+            let headers = ['ID', 'Producto', 'Categoria', 'Precio de Compra', 'Precio de Venta', 'Ganancia', 'Cantidad'];
+            let tabla = [headers];
+            for (const item of inventarioLS) {
+                let fila = headers.map(h => item[h.toLowerCase()] ?? item[h] ?? '');
+                tabla.push(fila);
+            }
+            inventarioData = sortInventarioDataPorID(tabla);
+            document.getElementById('tabla-inventario').innerHTML = renderTabla(inventarioData);
+            autoSizeColumns(document.getElementById('tabla-pro'));
+            // Guardar migración si hubo cambios
+            localStorage.setItem('inventario', JSON.stringify(inventarioLS));
+            return;
+        }
+        const response = await fetch('../Inventario.xlsx');
+        const data = await response.arrayBuffer();
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+        inventarioData = sortInventarioDataPorID(json);
+        if (json.length === 0) {
+            document.getElementById('tabla-inventario').innerHTML = '<p style="color:var(--color-text-muted);text-align:center;">No hay datos en el inventario.</p>';
+            return;
+        }
+        document.getElementById('tabla-inventario').innerHTML = renderTabla(inventarioData);
+        autoSizeColumns(document.getElementById('tabla-pro'));
+        let headers = json[0].map(h => h.toLowerCase());
+        let inventarioLS2 = [];
+        for (let i = 1; i < json.length; i++) {
+            let obj = {};
+            for (let j = 0; j < headers.length; j++) {
+                obj[headers[j]] = json[i][j];
+            }
+            inventarioLS2.push(obj);
+        }
+        localStorage.setItem('inventario', JSON.stringify(inventarioLS2));
+    }
+
+    function renderForm() {
+        if (!inventarioData.length) return '';
+        const campos = ['ID', 'Producto', 'Categoria', 'Precio de compra', 'Cantidad', 'Total'];
+        let form = '<form id="form-agregar" class="card" style="margin:24px auto;max-width:900px;display:flex;flex-wrap:wrap;gap:16px;align-items:end;justify-content:center;background:var(--color-bg-card);">';
+        campos.forEach((h) => {
+            const lower = h.toLowerCase();
+            if (lower === 'cantidad') {
+                form += `<div style="flex:1 1 120px;"><label style=\"color:var(--color-accent1);font-weight:bold;\">${h}</label><input name="${h}" type="number" min="0" required id="input-cantidad" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-bg-main);color:var(--color-text-main);"></div>`;
+            } else if (lower === 'id') {
+                form += `<div style="flex:1 1 120px;"><label style=\"color:var(--color-accent1);font-weight:bold;\">${h}</label><input name="${h}" type="number" min="0" required id="input-id" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-bg-main);color:var(--color-text-main);"></div>`;
+            } else if (lower === 'precio de compra') {
+                form += `<div style="flex:1 1 120px;"><label style=\"color:var(--color-accent1);font-weight:bold;\">${h}</label><input name="${h}" type="number" min="0" step="0.01" required id="input-precio-compra" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-bg-main);color:var(--color-text-main);"></div>`;
+            } else if (lower === 'total') {
+                form += `<div style="flex:1 1 120px;"><label style=\"color:var(--color-accent1);font-weight:bold;\">${h}</label><input name="${h}" type="number" min="0" step="0.01" required id="input-total" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-bg-main);color:var(--color-text-main);" readonly></div>`;
+            } else {
+                form += `<div style="flex:1 1 120px;"><label style=\"color:var(--color-accent1);font-weight:bold;\">${h}</label><input name="${h}" type="text" required id="input-${lower.replace(/ /g,'-')}" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-bg-main);color:var(--color-text-main);"></div>`;
+            }
+        });
+        form += '<button type="submit" class="button" style="margin-left:12px;">Agregar producto</button></form>';
+        return form;
+    }
+
+    function actualizarTabla() {
+        inventarioData = sortInventarioDataPorID(inventarioData);
+        document.getElementById('tabla-inventario').innerHTML = renderTabla(inventarioData);
+        autoSizeColumns(document.getElementById('tabla-pro'));
+        let headers = inventarioData[0].map(h => h.toLowerCase());
+        let inventarioLS = [];
+        for (let i = 1; i < inventarioData.length; i++) {
+            let obj = {};
+            for (let j = 0; j < headers.length; j++) {
+                obj[headers[j]] = inventarioData[i][j];
+            }
+            inventarioLS.push(obj);
+        }
+        localStorage.setItem('inventario', JSON.stringify(inventarioLS));
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        cargarInventario().then(() => {
+            const formHtml = renderForm();
+            if (formHtml) {
+                const formDiv = document.createElement('div');
+                formDiv.innerHTML = formHtml;
+                document.body.insertBefore(formDiv, document.querySelector('.card:last-of-type'));
+                document.getElementById('input-id').addEventListener('input', function() {
+                    const idVal = this.value;
+                    const idxID = inventarioData[0].findIndex(h => h.toLowerCase() === 'id');
+                    const idxProd = inventarioData[0].findIndex(h => h.toLowerCase() === 'producto');
+                    const idxCat = inventarioData[0].findIndex(h => h.toLowerCase() === 'categoria');
+                    const idxPrecioCompra = inventarioData[0].findIndex(h => h.toLowerCase() === 'precio de compra');
+                    const idxPrecioVenta = inventarioData[0].findIndex(h => h.toLowerCase() === 'precio de venta');
+                    let encontrado = null;
+                    for (let i = 1; i < inventarioData.length; i++) {
+                        if (inventarioData[i][idxID] == idVal) {
+                            encontrado = inventarioData[i];
+                            break;
+                        }
+                    }
+                    document.getElementById('input-producto').value = encontrado ? encontrado[idxProd] : '';
+                    document.getElementById('input-categoria').value = encontrado ? encontrado[idxCat] : '';
+                    document.getElementById('input-precio-compra').value = encontrado ? encontrado[idxPrecioCompra] : '';
+                });
+                const inputPrecio = document.getElementById('input-precio-compra');
+                const inputCantidad = document.getElementById('input-cantidad');
+                const inputTotal = document.getElementById('input-total');
+                function actualizarTotal() {
+                    const precio = parseFloat(inputPrecio.value) || 0;
+                    const cantidad = parseFloat(inputCantidad.value) || 0;
+                    inputTotal.value = (precio * cantidad).toFixed(2);
+                }
+                inputPrecio.addEventListener('input', actualizarTotal);
+                inputCantidad.addEventListener('input', actualizarTotal);
+                document.getElementById('form-agregar').addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    const formData = new FormData(this);
+                    const campos = ['ID', 'Producto', 'Categoria', 'Precio de Compra', 'Cantidad'];
+                    const nuevo = inventarioData[0].map(h => {
+                        const idx = campos.findIndex(c => c.toLowerCase() === h.toLowerCase());
+                        return idx !== -1 ? formData.get(campos[idx]) : '';
+                    });
+                    let idIdx = inventarioData[0].findIndex(h => h.toLowerCase() === 'id');
+                    let cantidadIdx = inventarioData[0].findIndex(h => h.toLowerCase() === 'cantidad');
+                    let existe = false;
+                    for (let i = 1; i < inventarioData.length; i++) {
+                        if (inventarioData[i][idIdx] == nuevo[idIdx]) {
+                            inventarioData[i][cantidadIdx] = Number(inventarioData[i][cantidadIdx] || 0) + Number(nuevo[cantidadIdx] || 0);
+                            existe = true;
+                            break;
+                        }
+                    }
+                    if (!existe) inventarioData.push(nuevo);
+                    actualizarTabla();
+                    let now = new Date();
+                    let registro = {
+                        id: nuevo[idIdx],
+                        producto: nuevo[inventarioData[0].findIndex(h => h.toLowerCase() === 'producto')],
+                        categoria: nuevo[inventarioData[0].findIndex(h => h.toLowerCase() === 'categoria')],
+                        precioCompra: nuevo[inventarioData[0].findIndex(h => h.toLowerCase() === 'precio de compra')],
+                        cantidad: nuevo[cantidadIdx],
+                        fecha: now.toLocaleDateString(),
+                        hora: now.toLocaleTimeString()
+                    };
+                    let compras = JSON.parse(localStorage.getItem('compras') || '[]');
+                    compras.push(registro);
+                    localStorage.setItem('compras', JSON.stringify(compras));
+                    let movimientos = JSON.parse(localStorage.getItem('movimientos') || '[]');
+                    movimientos.push({
+                        ...registro,
+                        tipo: 'Entrada',
+                        descripcion: 'Ingreso de producto al inventario'
+                    });
+                    localStorage.setItem('movimientos', JSON.stringify(movimientos));
+                    this.reset();
+                });
+            }
+        });
+
+        if (document.getElementById('limpiar-tabla-inventario')) {
+            document.getElementById('limpiar-tabla-inventario').onclick = function() {
+                if (confirm('¿Seguro que deseas limpiar toda la tabla de productos? Esta acción no se puede deshacer.')) {
+                    localStorage.removeItem('inventario');
+                    inventarioData = [];
+                    document.getElementById('tabla-inventario').innerHTML = '<p style="color:var(--color-text-muted);text-align:center;">No hay datos en el inventario.</p>';
+                }
+            };
+        }
+
+        if (document.getElementById('exportar-inventario-pdf')) {
+            document.getElementById('exportar-inventario-pdf').onclick = function() {
+                if (typeof window.jspdf === 'undefined') {
+                    alert('jsPDF no está cargado.');
+                    return;
+                }
+                const { jsPDF } = window.jspdf;
+                let doc = new jsPDF('l', 'mm', 'a4');
+                // Logo y encabezado
+                let logo = new Image();
+                logo.src = '../icons/inventario.png';
+                logo.onload = function() {
+                    doc.addImage(logo, 'PNG', 10, 8, 18, 18);
+                    doc.setFontSize(18);
+                    doc.setTextColor(35,25,66);
+                    doc.text('Inventario de Productos', 32, 18);
+                    doc.setFontSize(11);
+                    doc.setTextColor(90,90,90);
+                    doc.text('Fecha de generación: ' + new Date().toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' }), 32, 26);
+                    doc.setTextColor(35,25,66);
+                    // Tabla profesional con autoTable
+                    let headers = ['ID', 'Producto', 'Categoria', 'Precio de Compra', 'Precio de Venta', 'Ganancia', 'Cantidad'];
+                    let rows = [];
+                    for(let i=1; i<inventarioData.length; i++) {
+                        let row = inventarioData[i];
+                        if (!row || row.every(cell => cell === undefined || cell === null || String(cell).trim() === '')) continue;
+                        let precioCompra = parseFloat(row[3]) || 0;
+                        let precioVenta = parseFloat(row[4]) || 0;
+                        let ganancia = precioVenta - precioCompra;
+                        rows.push([
+                            row[0], row[1], row[2],
+                            row[3] ? `$${precioCompra.toFixed(2)}` : '',
+                            row[4] ? `$${precioVenta.toFixed(2)}` : '',
+                            `$${ganancia.toFixed(2)}`,
+                            row[6]
+                        ]);
+                    }
+                    if (typeof doc.autoTable === 'function') {
+                        doc.autoTable({
+                            head: [headers],
+                            body: rows,
+                            startY: 32,
+                            theme: 'grid',
+                            styles: {
+                                fontSize: 10,
+                                textColor: [35,25,66],
+                                halign: 'center',
+                                valign: 'middle',
+                                cellPadding: 3,
+                                lineColor: [94,96,206],
+                                lineWidth: 0.3
+                            },
+                            headStyles: {
+                                fillColor: [185,251,192],
+                                textColor: [35,25,66],
+                                fontStyle: 'bold',
+                                halign: 'center',
+                                valign: 'middle',
+                                lineColor: [94,96,206],
+                                lineWidth: 0.5
+                            },
+                            alternateRowStyles: { fillColor: [246,246,255] },
+                            margin: { left: 10, right: 10 },
+                            tableLineColor: [94,96,206],
+                            tableLineWidth: 0.2,
+                            didDrawPage: function (data) {
+                                // Pie de página profesional
+                                let pageCount = doc.internal.getNumberOfPages();
+                                let pageSize = doc.internal.pageSize;
+                                let pageHeight = pageSize.height ? pageSize.height : pageSize.getHeight();
+                                doc.setFontSize(10);
+                                doc.setTextColor(180,180,180);
+                                doc.text('Generado por Mi Empresa | www.miempresa.com', pageSize.width / 2, pageHeight - 8, { align: 'center' });
+                                doc.text('Página ' + doc.internal.getCurrentPageInfo().pageNumber + ' de ' + pageCount, pageSize.width - 20, pageHeight - 8);
+                            }
+                        });
+                    }
+                    doc.save('Inventario.pdf');
+                };
+            };
+        }
+    });
+
+    window.addEventListener('storage', function(e) {
+        if (e.key === 'inventario') cargarInventario();
+    });
+    </script>
+</body>
+</html>
+`

@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuraciones</title>
+    <link rel="stylesheet" href="../static/styles.css">
+</head>
+<body>
+    <script>
+    if (localStorage.getItem('auth') !== 'ok') {
+        window.location.href = '../login.html';
+    }
+    </script>
+    <a href="../index.html" style="display:inline-block;margin:16px 0 0 16px;padding:8px 18px;background:#231942;color:#fff;border-radius:6px;text-decoration:none;font-weight:bold;">&larr; Volver al inicio</a>
+    <div class="card" style="max-width:1050px;margin:40px auto 60px auto;text-align:center;box-shadow:0 4px 24px 0 rgba(94,96,206,0.10);border-radius:18px;background:linear-gradient(120deg,#f6f6ff 60%,#b9fbc0 100%);padding:36px 32px 32px 32px;">
+        <h1 style="font-size:2.2rem;color:#231942;margin-bottom:8px;letter-spacing:1px;">Configuraciones</h1>
+        <p style="color:#5e60ce;font-size:1.1rem;margin-bottom:24px;">Administra la identidad de tu empresa y el acceso a todas las páginas del sistema.</p>
+        <div style="display:flex;flex-wrap:wrap;gap:32px;justify-content:space-between;align-items:flex-start;">
+            <div style="flex:1 1 340px;min-width:320px;background:#fff;border-radius:14px;box-shadow:0 2px 12px 0 rgba(35,25,66,0.07);padding:28px 24px 18px 24px;">
+                <h2 style="color:#231942;font-size:1.3rem;margin-bottom:18px;">Datos de la empresa</h2>
+                <form id="form-empresa" style="display:flex;flex-direction:column;gap:16px;align-items:center;">
+                    <input type="text" id="nombre-empresa" placeholder="Nombre de la empresa" style="width:100%;max-width:320px;padding:10px 12px;border:1.5px solid #b9fbc0;border-radius:7px;font-size:1.1rem;">
+                    <label style="width:100%;max-width:320px;text-align:left;color:#5e60ce;font-weight:bold;font-size:0.98rem;">Logo de la empresa
+                        <input type="file" id="logo-empresa" accept="image/*" style="display:block;margin-top:6px;">
+                    </label>
+                    <img id="preview-logo" src="" alt="Logo actual" style="height:60px;max-width:180px;object-fit:contain;display:none;border:1.5px solid #b9fbc0;border-radius:8px;background:#f6f6ff;padding:6px;">
+                    <button type="submit" style="background:linear-gradient(90deg,#5e60ce,#b9fbc0);color:#fff;padding:10px 0;border:none;border-radius:7px;font-size:1.1rem;font-weight:bold;width:100%;max-width:220px;box-shadow:0 2px 8px 0 rgba(94,96,206,0.10);margin-top:8px;">Guardar cambios</button>
+                </form>
+            </div>
+        </div>
+        <h2 style="color:#231942;font-size:1.3rem;margin:38px 0 18px 0;">Gestión de páginas</h2>
+        <div id="gestion-paginas" style="display:flex;flex-wrap:wrap;gap:28px;justify-content:center;"></div>
+    </div>
+    <script>
+    // --- Empresa ---
+    function cargarDatosEmpresa() {
+        const datos = JSON.parse(localStorage.getItem('empresa') || '{}');
+        if (datos.nombre) document.getElementById('nombre-empresa').value = datos.nombre;
+        if (datos.logo) {
+            document.getElementById('preview-logo').src = datos.logo;
+            document.getElementById('preview-logo').style.display = 'inline-block';
+        }
+    }
+    document.getElementById('logo-empresa').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            document.getElementById('preview-logo').src = ev.target.result;
+            document.getElementById('preview-logo').style.display = 'inline-block';
+        };
+        reader.readAsDataURL(file);
+    });
+    document.getElementById('form-empresa').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const nombre = document.getElementById('nombre-empresa').value.trim();
+        const logo = document.getElementById('preview-logo').src || '';
+        localStorage.setItem('empresa', JSON.stringify({nombre, logo}));
+        alert('Datos de la empresa guardados.');
+    });
+    // --- Gestión de páginas ---
+    const paginas = [
+        {nombre:'Inventario', archivo:'inventario.html'},
+        {nombre:'Ventas', archivo:'ventas.html'},
+        {nombre:'Compras', archivo:'compras.html'},
+        {nombre:'Movimientos', archivo:'movimientos.html'},
+        {nombre:'Facturas', archivo:'factura.html'},
+        {nombre:'Proveedores', archivo:'proveedores.html'},
+        {nombre:'Clientes', archivo:'clientes.html'},
+        {nombre:'Crédito', archivo:'credito.html'},
+        {nombre:'Dashboard', archivo:'dashboard.html'},
+        {nombre:'Contabilidad', archivo:'contabilidad.html'},
+        {nombre:'Reportes', archivo:'reportes.html'}
+    ];
+    function renderGestionPaginas() {
+        let html = '';
+        paginas.forEach((p,i) => {
+            html += `<div style='background:#fff;border-radius:14px;box-shadow:0 2px 12px 0 rgba(35,25,66,0.07);padding:24px 20px 18px 20px;min-width:260px;max-width:320px;flex:1 1 260px;display:flex;flex-direction:column;align-items:center;gap:14px;'>
+                <h3 style='color:#231942;font-size:1.15rem;margin-bottom:6px;'>${p.nombre}</h3>
+                <p style='color:#5e60ce;font-size:0.98rem;margin-bottom:8px;word-break:break-word;'>Archivo: <span style="color:#231942;font-weight:bold;">${p.archivo}</span></p>
+                <div style='display:flex;gap:10px;justify-content:center;'>
+                    <button onclick="window.open('${p.archivo}','_blank')" style='background:#5e60ce;color:#fff;border:none;padding:7px 18px;border-radius:6px;cursor:pointer;font-weight:bold;box-shadow:0 1px 4px 0 rgba(94,96,206,0.10);transition:background 0.2s;'>Ver</button>
+                    <button onclick="editarPagina('${p.archivo}')" style='background:#ffd60a;color:#231942;border:none;padding:7px 18px;border-radius:6px;cursor:pointer;font-weight:bold;box-shadow:0 1px 4px 0 rgba(94,96,206,0.10);transition:background 0.2s;'>Editar</button>
+                    <button onclick="eliminarPagina('${p.archivo}')" style='background:#e63946;color:#fff;border:none;padding:7px 18px;border-radius:6px;cursor:pointer;font-weight:bold;box-shadow:0 1px 4px 0 rgba(94,96,206,0.10);transition:background 0.2s;'>Eliminar</button>
+                </div>
+            </div>`;
+        });
+        document.getElementById('gestion-paginas').innerHTML = html;
+    }
+    function editarPagina(archivo) {
+        // Modal de configuración avanzada por página
+        let modalHtml = `<div id='modal-config-pagina' style='position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center;z-index:1000;'>
+            <form id='form-config-pagina' style='background:#fff;padding:32px 28px 24px 28px;border-radius:14px;box-shadow:0 2px 16px 0 rgba(35,25,66,0.18);display:flex;flex-direction:column;gap:18px;min-width:320px;max-width:420px;'>
+                <h2 style='margin-bottom:8px;color:#231942;'>Configurar página: <span style='color:#5e60ce;'>${archivo}</span></h2>
+                <label style='text-align:left;font-weight:bold;color:#5e60ce;'>Tamaño de letra
+                    <input type='number' id='tamano-letra' min='10' max='48' step='1' value='16' style='width:80px;margin-left:10px;padding:4px 8px;border-radius:5px;border:1.5px solid #b9fbc0;'> px
+                </label>
+                <label style='text-align:left;font-weight:bold;color:#5e60ce;'>Color de texto
+                    <input type='color' id='color-letra' value='#231942' style='margin-left:10px;width:40px;height:28px;border:none;'>
+                </label>
+                <label style='text-align:left;font-weight:bold;color:#5e60ce;'>Color de fondo
+                    <input type='color' id='color-fondo' value='#f6f6ff' style='margin-left:10px;width:40px;height:28px;border:none;'>
+                </label>
+                <label style='text-align:left;font-weight:bold;color:#5e60ce;'>Título de la página
+                    <input type='text' id='titulo-pagina' style='width:100%;margin-top:6px;padding:6px 10px;border-radius:5px;border:1.5px solid #b9fbc0;'>
+                </label>
+                <div style='display:flex;gap:12px;justify-content:flex-end;margin-top:10px;'>
+                    <button type='button' onclick='cerrarModalConfigPagina()' style='background:#adb5bd;color:#231942;padding:8px 18px;border:none;border-radius:6px;font-size:1rem;font-weight:bold;cursor:pointer;'>Cancelar</button>
+                    <button type='submit' style='background:#5e60ce;color:#fff;padding:8px 18px;border:none;border-radius:6px;font-size:1rem;font-weight:bold;cursor:pointer;'>Guardar</button>
+                </div>
+            </form>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        // Cargar configuración previa si existe
+        let configPaginas = JSON.parse(localStorage.getItem('configPaginas') || '{}');
+        let config = configPaginas[archivo] || {};
+        document.getElementById('tamano-letra').value = config.tamanoLetra || 16;
+        document.getElementById('color-letra').value = config.colorLetra || '#231942';
+        document.getElementById('color-fondo').value = config.colorFondo || '#f6f6ff';
+        document.getElementById('titulo-pagina').value = config.titulo || '';
+        document.getElementById('form-config-pagina').onsubmit = function(e) {
+            e.preventDefault();
+            let nuevaConfig = {
+                tamanoLetra: document.getElementById('tamano-letra').value,
+                colorLetra: document.getElementById('color-letra').value,
+                colorFondo: document.getElementById('color-fondo').value,
+                titulo: document.getElementById('titulo-pagina').value
+            };
+            configPaginas[archivo] = nuevaConfig;
+            localStorage.setItem('configPaginas', JSON.stringify(configPaginas));
+            alert('Configuración guardada. Recarga la página para ver los cambios.');
+            cerrarModalConfigPagina();
+        };
+    }
+    function cerrarModalConfigPagina() {
+        let modal = document.getElementById('modal-config-pagina');
+        if (modal) modal.remove();
+    }
+    function eliminarPagina(archivo) {
+        if (!confirm('¿Seguro que deseas eliminar la página ' + archivo + '? Esta acción no se puede deshacer.')) return;
+        alert('Página eliminada (simulación, solo para demostración).');
+        // Aquí podrías implementar la lógica real de eliminación si el backend lo permite
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+        cargarDatosEmpresa();
+        renderGestionPaginas();
+    });
+    </script>
+</body>
+</html>

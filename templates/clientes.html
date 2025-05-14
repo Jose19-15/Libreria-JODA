@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clientes</title>
+    <link rel="stylesheet" href="../static/styles.css">
+</head>
+<body>
+    <script>
+    if (localStorage.getItem('auth') !== 'ok') {
+        window.location.href = '../login.html';
+    }
+    </script>
+    <a href="../index.html" style="display:inline-block;margin:16px 0 0 16px;padding:8px 18px;background:#231942;color:#fff;border-radius:6px;text-decoration:none;font-weight:bold;">&larr; Volver al inicio</a>
+    <div class="card" style="max-width:900px;margin:40px auto;text-align:center;">
+        <h1>Clientes</h1>
+        <p>Bienvenido a la sección de clientes. Aquí podrás gestionar la información de tus clientes.</p>
+        <form id="form-nuevo-cliente" style="display:flex;flex-wrap:wrap;gap:16px;justify-content:center;margin-bottom:18px;">
+            <input type="text" id="nuevo-nombre" placeholder="Nombre" required style="flex:1 1 120px;padding:8px;border-radius:6px;border:1px solid #bbb;">
+            <input type="text" id="nuevo-telefono" placeholder="Teléfono" style="flex:1 1 120px;padding:8px;border-radius:6px;border:1px solid #bbb;">
+            <input type="email" id="nuevo-email" placeholder="Correo" style="flex:1 1 180px;padding:8px;border-radius:6px;border:1px solid #bbb;">
+            <input type="text" id="nuevo-direccion" placeholder="Dirección" style="flex:1 1 180px;padding:8px;border-radius:6px;border:1px solid #bbb;">
+            <button type="submit" class="button" style="padding:8px 18px;">Agregar</button>
+        </form>
+        <div id="tabla-clientes"></div>
+    </div>
+    <script>
+    function renderClientes() {
+        let clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
+        if (!clientes.length) {
+            document.getElementById('tabla-clientes').innerHTML = '<p style="color:var(--color-text-muted);">No hay clientes registrados.</p>';
+            return;
+        }
+        let html = `<div style='overflow-x:auto;'><table style="width:100%;margin-top:16px;border-collapse:separate;border-spacing:0 6px;min-width:600px;box-shadow:0 2px 8px 0 rgba(0,0,0,0.10);background:#fff;border-radius:10px;">
+        <thead><tr style='background:linear-gradient(90deg,#b9fbc0,#5e60ce);color:#231942;'>
+        <th style='padding:12px 8px;'>Nombre</th><th style='padding:12px 8px;'>Teléfono</th><th style='padding:12px 8px;'>Email</th><th style='padding:12px 8px;'>Dirección</th></tr></thead><tbody>`;
+        clientes.forEach((c,i) => {
+            html += `<tr data-index='${i}' style='background:${i%2===0?'#f6f6ff':'#fff'};color:#000;cursor:pointer;'>
+                <td style='padding:10px 8px;color:#000;' class='td-nombre'>${c.nombre ?? ''}</td>
+                <td style='padding:10px 8px;color:#000;' class='td-telefono'>${c.telefono ?? ''}</td>
+                <td style='padding:10px 8px;color:#000;' class='td-email'>${c.email ?? ''}</td>
+                <td style='padding:10px 8px;color:#000;' class='td-direccion'>${c.direccion ?? ''}</td>
+            </tr>`;
+        });
+        html += '</tbody></table></div>';
+        document.getElementById('tabla-clientes').innerHTML = html;
+        // Doble click para editar
+        document.querySelectorAll('#tabla-clientes tr[data-index]').forEach(tr => {
+            tr.ondblclick = function() {
+                const idx = parseInt(this.getAttribute('data-index'));
+                if (this.classList.contains('editando')) return;
+                this.classList.add('editando');
+                ['nombre','telefono','email','direccion'].forEach((campo,j) => {
+                    const td = this.querySelector('.td-' + campo);
+                    const valor = td.textContent;
+                    td.innerHTML = `<input type='text' value='${valor}' style='width:100%;padding:4px 6px;border-radius:4px;border:1px solid #bbb;color:#000;'>`;
+                });
+                // Botón guardar
+                const tdUltimo = this.lastElementChild;
+                let btnGuardar = document.createElement('button');
+                btnGuardar.textContent = 'Guardar';
+                btnGuardar.style = 'margin-left:8px;padding:4px 12px;background:#43e97b;color:#fff;border:none;border-radius:5px;cursor:pointer;';
+                tdUltimo.appendChild(btnGuardar);
+                btnGuardar.onclick = (e) => {
+                    e.stopPropagation();
+                    const tds = this.querySelectorAll('td');
+                    clientes[idx].nombre = tds[0].querySelector('input').value;
+                    clientes[idx].telefono = tds[1].querySelector('input').value;
+                    clientes[idx].email = tds[2].querySelector('input').value;
+                    clientes[idx].direccion = tds[3].querySelector('input').value;
+                    localStorage.setItem('clientes', JSON.stringify(clientes));
+                    renderClientes();
+                };
+            };
+        });
+    }
+    window.addEventListener('storage', function(e) {
+        if (e.key === 'clientes') renderClientes();
+    });
+    document.addEventListener('DOMContentLoaded', function() {
+        renderClientes();
+        document.getElementById('form-nuevo-cliente').onsubmit = function(e) {
+            e.preventDefault();
+            let clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
+            clientes.push({
+                nombre: document.getElementById('nuevo-nombre').value,
+                telefono: document.getElementById('nuevo-telefono').value,
+                email: document.getElementById('nuevo-email').value,
+                direccion: document.getElementById('nuevo-direccion').value
+            });
+            localStorage.setItem('clientes', JSON.stringify(clientes));
+            this.reset();
+            renderClientes();
+        };
+    });
+    </script>
+</body>
+</html>

@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contabilidad</title>
+    <link rel="stylesheet" href="../static/styles.css">
+</head>
+<body>
+    <script>
+    if (localStorage.getItem('auth') !== 'ok') {
+        window.location.href = '../login.html';
+    }
+    </script>
+    <a href="../index.html" style="display:inline-block;margin:16px 0 0 16px;padding:8px 18px;background:#231942;color:#fff;border-radius:6px;text-decoration:none;font-weight:bold;">&larr; Volver al inicio</a>
+    <div class="card" style="max-width:1100px;margin:40px auto;text-align:center;">
+        <h1>Contabilidad</h1>
+        <p>Bienvenido a la sección de contabilidad. Aquí podrás ver el resumen contable y registrar movimientos detallados.</p>
+        <div style="margin:24px 0 32px 0;text-align:right;">
+            <button id="btn-nuevo-mov" style="background:#5e60ce;color:#fff;padding:10px 22px;border:none;border-radius:7px;font-weight:bold;font-size:1rem;box-shadow:0 2px 8px 0 rgba(94,96,206,0.10);">Nuevo movimiento</button>
+            <button id="btn-exportar-pdf" style="background:#ffd60a;color:#231942;padding:10px 22px;border:none;border-radius:7px;font-weight:bold;font-size:1rem;margin-left:12px;box-shadow:0 2px 8px 0 rgba(94,96,206,0.10);">Exportar PDF</button>
+        </div>
+        <div id="tabla-contabilidad"></div>
+        <div id="resumen-contable" style="margin:32px 0 0 0;text-align:left;font-size:1.08rem;color:#231942;"></div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <script>
+    function renderContabilidad() {
+        let contabilidad = JSON.parse(localStorage.getItem('contabilidad') || '[]');
+        if (!contabilidad.length) {
+            document.getElementById('tabla-contabilidad').innerHTML = '<p style="color:var(--color-text-muted);">No hay movimientos registrados.</p>';
+            document.getElementById('resumen-contable').innerHTML = '';
+            return;
+        }
+        let html = `<div style='overflow-x:auto;'><table style="width:100%;margin-top:16px;border-collapse:separate;border-spacing:0 6px;min-width:900px;box-shadow:0 2px 8px 0 rgba(0,0,0,0.10);background:#fff;border-radius:10px;">
+        <thead><tr style='background:linear-gradient(90deg,#b9fbc0,#5e60ce);color:#231942;'>
+        <th style='padding:12px 8px;'>Fecha</th><th style='padding:12px 8px;'>Descripción</th><th style='padding:12px 8px;'>Cuenta</th><th style='padding:12px 8px;'>Tipo</th><th style='padding:12px 8px;'>Débito</th><th style='padding:12px 8px;'>Crédito</th><th style='padding:12px 8px;'>Saldo</th><th style='padding:12px 8px;'>Acciones</th></tr></thead><tbody>`;
+        let saldo = 0;
+        contabilidad.forEach((m,i) => {
+            saldo += (parseFloat(m.credito)||0) - (parseFloat(m.debito)||0);
+            html += `<tr style='background:${i%2===0?'#f6f6ff':'#fff'};color:#000;'>
+                <td style='padding:10px 8px;'>${m.fecha ?? ''}</td>
+                <td style='padding:10px 8px;'>${m.descripcion ?? ''}</td>
+                <td style='padding:10px 8px;'>${m.cuenta ?? ''}</td>
+                <td style='padding:10px 8px;'>${m.tipo ?? ''}</td>
+                <td style='padding:10px 8px;'>${m.debito ? '$'+parseFloat(m.debito).toFixed(2) : ''}</td>
+                <td style='padding:10px 8px;'>${m.credito ? '$'+parseFloat(m.credito).toFixed(2) : ''}</td>
+                <td style='padding:10px 8px;'>$${saldo.toFixed(2)}</td>
+                <td style='padding:10px 8px;'>
+                    <button onclick="editarMovimiento(${i})" style='background:#ffd60a;color:#231942;border:none;padding:4px 10px;border-radius:4px;margin-right:6px;cursor:pointer;'>Editar</button>
+                    <button onclick="eliminarMovimiento(${i})" style='background:#e63946;color:#fff;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;'>Eliminar</button>
+                </td>
+            </tr>`;
+        });
+        html += '</tbody></table></div>';
+        document.getElementById('tabla-contabilidad').innerHTML = html;
+        // Resumen contable
+        let totalDebito = contabilidad.reduce((a,b)=>a+(parseFloat(b.debito)||0),0);
+        let totalCredito = contabilidad.reduce((a,b)=>a+(parseFloat(b.credito)||0),0);
+        let saldoFinal = totalCredito-totalDebito;
+        document.getElementById('resumen-contable').innerHTML = `<b>Débito total:</b> $${totalDebito.toFixed(2)}<br><b>Crédito total:</b> $${totalCredito.toFixed(2)}<br><b>Saldo final:</b> $${saldoFinal.toFixed(2)}`;
+    }
+    // Nuevo movimiento
+    document.getElementById('btn-nuevo-mov').onclick = function() {
+        let modal = `<div id='modal-mov' style='position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center;z-index:1000;'>
+            <form id='form-mov' style='background:#fff;padding:32px 24px;border-radius:12px;box-shadow:0 2px 16px 0 rgba(35,25,66,0.18);display:flex;flex-direction:column;gap:14px;min-width:320px;max-width:400px;'>
+                <h2 style='margin-bottom:8px;color:#231942;'>Nuevo movimiento</h2>
+                <input type='date' id='mov-fecha' required style='padding:8px;border-radius:6px;border:1.5px solid #b9fbc0;'>
+                <input type='text' id='mov-descripcion' placeholder='Descripción' required style='padding:8px;border-radius:6px;border:1.5px solid #b9fbc0;'>
+                <input type='text' id='mov-cuenta' placeholder='Cuenta (ej: Caja, Banco, Ventas, Compras)' required style='padding:8px;border-radius:6px;border:1.5px solid #b9fbc0;'>
+                <select id='mov-tipo' required style='padding:8px;border-radius:6px;border:1.5px solid #b9fbc0;'>
+                    <option value='Ingreso'>Ingreso</option>
+                    <option value='Egreso'>Egreso</option>
+                    <option value='Ajuste'>Ajuste</option>
+                </select>
+                <input type='number' id='mov-debito' placeholder='Débito' min='0' step='0.01' style='padding:8px;border-radius:6px;border:1.5px solid #b9fbc0;'>
+                <input type='number' id='mov-credito' placeholder='Crédito' min='0' step='0.01' style='padding:8px;border-radius:6px;border:1.5px solid #b9fbc0;'>
+                <div style='display:flex;gap:12px;justify-content:flex-end;'>
+                    <button type='button' onclick='cerrarModalMov()' style='background:#adb5bd;color:#231942;padding:8px 18px;border:none;border-radius:6px;font-size:1rem;font-weight:bold;cursor:pointer;'>Cancelar</button>
+                    <button type='submit' style='background:#5e60ce;color:#fff;padding:8px 18px;border:none;border-radius:6px;font-size:1rem;font-weight:bold;cursor:pointer;'>Guardar</button>
+                </div>
+            </form>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', modal);
+        document.getElementById('form-mov').onsubmit = function(e) {
+            e.preventDefault();
+            let contabilidad = JSON.parse(localStorage.getItem('contabilidad') || '[]');
+            contabilidad.push({
+                fecha: document.getElementById('mov-fecha').value,
+                descripcion: document.getElementById('mov-descripcion').value,
+                cuenta: document.getElementById('mov-cuenta').value,
+                tipo: document.getElementById('mov-tipo').value,
+                debito: document.getElementById('mov-debito').value,
+                credito: document.getElementById('mov-credito').value,
+                saldo: ''
+            });
+            localStorage.setItem('contabilidad', JSON.stringify(contabilidad));
+            cerrarModalMov();
+            renderContabilidad();
+        };
+    };
+    function cerrarModalMov() {
+        let modal = document.getElementById('modal-mov');
+        if (modal) modal.remove();
+    }
+    // Editar movimiento
+    function editarMovimiento(idx) {
+        let contabilidad = JSON.parse(localStorage.getItem('contabilidad') || '[]');
+        let m = contabilidad[idx];
+        let modal = `<div id='modal-edit-mov' style='position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center;z-index:1000;'>
+            <form id='form-edit-mov' style='background:#fff;padding:32px 24px;border-radius:12px;box-shadow:0 2px 16px 0 rgba(35,25,66,0.18);display:flex;flex-direction:column;gap:14px;min-width:320px;max-width:400px;'>
+                <h2 style='margin-bottom:8px;color:#231942;'>Editar movimiento</h2>
+                <input type='date' id='edit-mov-fecha' value='${m.fecha}' required style='padding:8px;border-radius:6px;border:1.5px solid #b9fbc0;'>
+                <input type='text' id='edit-mov-descripcion' value='${m.descripcion}' required style='padding:8px;border-radius:6px;border:1.5px solid #b9fbc0;'>
+                <input type='text' id='edit-mov-cuenta' value='${m.cuenta}' required style='padding:8px;border-radius:6px;border:1.5px solid #b9fbc0;'>
+                <select id='edit-mov-tipo' required style='padding:8px;border-radius:6px;border:1.5px solid #b9fbc0;'>
+                    <option value='Ingreso' ${m.tipo==='Ingreso'?'selected':''}>Ingreso</option>
+                    <option value='Egreso' ${m.tipo==='Egreso'?'selected':''}>Egreso</option>
+                    <option value='Ajuste' ${m.tipo==='Ajuste'?'selected':''}>Ajuste</option>
+                </select>
+                <input type='number' id='edit-mov-debito' value='${m.debito}' min='0' step='0.01' style='padding:8px;border-radius:6px;border:1.5px solid #b9fbc0;'>
+                <input type='number' id='edit-mov-credito' value='${m.credito}' min='0' step='0.01' style='padding:8px;border-radius:6px;border:1.5px solid #b9fbc0;'>
+                <div style='display:flex;gap:12px;justify-content:flex-end;'>
+                    <button type='button' onclick='cerrarModalEditMov()' style='background:#adb5bd;color:#231942;padding:8px 18px;border:none;border-radius:6px;font-size:1rem;font-weight:bold;cursor:pointer;'>Cancelar</button>
+                    <button type='submit' style='background:#5e60ce;color:#fff;padding:8px 18px;border:none;border-radius:6px;font-size:1rem;font-weight:bold;cursor:pointer;'>Guardar</button>
+                </div>
+            </form>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', modal);
+        document.getElementById('form-edit-mov').onsubmit = function(e) {
+            e.preventDefault();
+            contabilidad[idx] = {
+                fecha: document.getElementById('edit-mov-fecha').value,
+                descripcion: document.getElementById('edit-mov-descripcion').value,
+                cuenta: document.getElementById('edit-mov-cuenta').value,
+                tipo: document.getElementById('edit-mov-tipo').value,
+                debito: document.getElementById('edit-mov-debito').value,
+                credito: document.getElementById('edit-mov-credito').value,
+                saldo: ''
+            };
+            localStorage.setItem('contabilidad', JSON.stringify(contabilidad));
+            cerrarModalEditMov();
+            renderContabilidad();
+        };
+    }
+    function cerrarModalEditMov() {
+        let modal = document.getElementById('modal-edit-mov');
+        if (modal) modal.remove();
+    }
+    // Eliminar movimiento
+    function eliminarMovimiento(idx) {
+        if (!confirm('¿Seguro que deseas eliminar este movimiento?')) return;
+        let contabilidad = JSON.parse(localStorage.getItem('contabilidad') || '[]');
+        contabilidad.splice(idx, 1);
+        localStorage.setItem('contabilidad', JSON.stringify(contabilidad));
+        renderContabilidad();
+    }
+    // Exportar PDF
+    document.getElementById('btn-exportar-pdf').onclick = function() {
+        let contabilidad = JSON.parse(localStorage.getItem('contabilidad') || '[]');
+        if (!contabilidad.length) return alert('No hay movimientos para exportar.');
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        doc.setFontSize(16);
+        doc.text('Resumen Contable', 14, 16);
+        doc.setFontSize(10);
+        doc.text('Fecha de exportación: ' + new Date().toLocaleDateString(), 14, 22);
+        const columns = ['Fecha','Descripción','Cuenta','Tipo','Débito','Crédito','Saldo'];
+        let saldo = 0;
+        const rows = contabilidad.map(m => {
+            saldo += (parseFloat(m.credito)||0) - (parseFloat(m.debito)||0);
+            return [m.fecha, m.descripcion, m.cuenta, m.tipo, m.debito ? '$'+parseFloat(m.debito).toFixed(2) : '', m.credito ? '$'+parseFloat(m.credito).toFixed(2) : '', '$'+saldo.toFixed(2)];
+        });
+        doc.autoTable({ head: [columns], body: rows, startY: 28, styles: { fontSize: 9, textColor: [35,25,66] }, headStyles: { fillColor: [185,251,192], textColor: [35,25,66] } });
+        doc.save('Resumen_Contable.pdf');
+    };
+    window.addEventListener('storage', function(e) {
+        if (e.key === 'contabilidad') renderContabilidad();
+    });
+    document.addEventListener('DOMContentLoaded', renderContabilidad);
+    </script>
+</body>
+</html>
+``` 

@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <link rel="stylesheet" href="../static/styles.css">
+</head>
+<body>
+    <script>
+    if (localStorage.getItem('auth') !== 'ok') {
+        window.location.href = '../login.html';
+    }
+    </script>
+    <a href="../index.html" style="display:inline-block;margin:16px 0 0 16px;padding:8px 18px;background:#231942;color:#fff;border-radius:6px;text-decoration:none;font-weight:bold;">&larr; Volver al inicio</a>
+    <div class="card" style="max-width:600px;margin:40px auto;text-align:center;">
+        <h1>Dashboard</h1>
+        <p>Bienvenido al dashboard. Aquí verás un resumen general del sistema.</p>
+    </div>
+    <div style="text-align:right;margin-bottom:18px;">
+        <button id="exportar-dashboard-pdf" class="button" style="padding:10px 28px;">Generar PDF del Dashboard</button>
+    </div>
+    <div class="card" style="max-width:1400px;margin:40px auto 24px auto;text-align:center;">
+        <h2 style="margin-bottom:24px;">Gráficas y Resúmenes Generales</h2>
+        <div style="display:flex;flex-wrap:wrap;gap:36px;justify-content:center;align-items:flex-start;">
+            <div style="flex:1 1 480px;min-width:420px;max-width:600px;">
+                <h3 style="margin-bottom:8px;">Inventario</h3>
+                <canvas id="grafica-inventario" width="600" height="320"></canvas>
+            </div>
+            <div style="flex:1 1 480px;min-width:420px;max-width:600px;">
+                <h3 style="margin-bottom:8px;">Ventas</h3>
+                <canvas id="grafica-ventas" width="600" height="320"></canvas>
+            </div>
+            <div style="flex:1 1 480px;min-width:420px;max-width:600px;">
+                <h3 style="margin-bottom:8px;">Compras</h3>
+                <canvas id="grafica-compras" width="600" height="320"></canvas>
+            </div>
+            <div style="flex:1 1 480px;min-width:420px;max-width:600px;">
+                <h3 style="margin-bottom:8px;">Movimientos</h3>
+                <canvas id="grafica-movimientos" width="600" height="320"></canvas>
+            </div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:36px;justify-content:center;align-items:flex-start;margin-top:36px;">
+            <div style="flex:1 1 320px;min-width:320px;max-width:420px;">
+                <h3 style="margin-bottom:8px;">Facturas semanales</h3>
+                <canvas id="grafica-facturas-semana" width="420" height="220"></canvas>
+                <div id="total-facturas-semana" style="margin-top:8px;font-weight:bold;color:#5e60ce;"></div>
+            </div>
+            <div style="flex:1 1 320px;min-width:320px;max-width:420px;">
+                <h3 style="margin-bottom:8px;">Proveedores</h3>
+                <canvas id="grafica-proveedores" width="420" height="220"></canvas>
+                <div id="total-proveedores" style="margin-top:8px;font-weight:bold;color:#5e60ce;"></div>
+            </div>
+            <div style="flex:1 1 320px;min-width:320px;max-width:420px;">
+                <h3 style="margin-bottom:8px;">Clientes</h3>
+                <canvas id="grafica-clientes" width="420" height="220"></canvas>
+                <div id="total-clientes" style="margin-top:8px;font-weight:bold;color:#5e60ce;"></div>
+            </div>
+            <div style="flex:1 1 320px;min-width:320px;max-width:420px;">
+                <h3 style="margin-bottom:8px;">Top Proveedores</h3>
+                <canvas id="grafica-top-proveedores" width="420" height="220"></canvas>
+            </div>
+            <div style="flex:1 1 320px;min-width:320px;max-width:420px;">
+                <h3 style="margin-bottom:8px;">Top Clientes</h3>
+                <canvas id="grafica-top-clientes" width="420" height="220"></canvas>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
+    <script>
+    // --- Inventario: Barras de cantidad por producto ---
+    let inventario = JSON.parse(localStorage.getItem('inventario') || '[]');
+    let productos = inventario.map(p => p.producto || '');
+    let cantidades = inventario.map(p => parseFloat(p.cantidad) || 0);
+    let ctxInv = document.getElementById('grafica-inventario').getContext('2d');
+    new Chart(ctxInv, {
+        type: 'bar',
+        data: {
+            labels: productos,
+            datasets: [{
+                label: 'Cantidad',
+                data: cantidades,
+                backgroundColor: 'rgba(67,233,123,0.7)',
+                borderColor: 'rgba(67,233,123,1)',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+    // --- Ventas: Línea de ventas por día ---
+    let ventas = JSON.parse(localStorage.getItem('ventas') || '[]');
+    let ventasPorDia = {};
+    ventas.forEach(v => {
+        if (!ventasPorDia[v.fecha]) ventasPorDia[v.fecha] = 0;
+        ventasPorDia[v.fecha] += parseFloat(v.precio) * parseFloat(v.cantidad || 1);
+    });
+    let fechasVentas = Object.keys(ventasPorDia);
+    let montosVentas = Object.values(ventasPorDia);
+    let ctxVentas = document.getElementById('grafica-ventas').getContext('2d');
+    new Chart(ctxVentas, {
+        type: 'line',
+        data: {
+            labels: fechasVentas,
+            datasets: [{
+                label: 'Monto vendido',
+                data: montosVentas,
+                fill: false,
+                borderColor: '#5e60ce',
+                backgroundColor: '#b9fbc0',
+                tension: 0.2
+            }]
+        },
+        options: {
+            plugins: { legend: { display: true } },
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+    // --- Compras: Barras de compras por producto ---
+    let compras = JSON.parse(localStorage.getItem('compras') || '[]');
+    let comprasPorProducto = {};
+    compras.forEach(c => {
+        if (!comprasPorProducto[c.producto]) comprasPorProducto[c.producto] = 0;
+        comprasPorProducto[c.producto] += parseFloat(c.cantidad) || 0;
+    });
+    let productosCompras = Object.keys(comprasPorProducto);
+    let cantidadesCompras = Object.values(comprasPorProducto);
+    let ctxCompras = document.getElementById('grafica-compras').getContext('2d');
+    new Chart(ctxCompras, {
+        type: 'bar',
+        data: {
+            labels: productosCompras,
+            datasets: [{
+                label: 'Compras',
+                data: cantidadesCompras,
+                backgroundColor: 'rgba(0,207,255,0.7)',
+                borderColor: 'rgba(0,207,255,1)',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+    // --- Movimientos: Donut de tipos de movimiento ---
+    let movimientos = JSON.parse(localStorage.getItem('movimientos') || '[]');
+    let tiposMov = {};
+    movimientos.forEach(m => {
+        if (!tiposMov[m.tipo]) tiposMov[m.tipo] = 0;
+        tiposMov[m.tipo]++;
+    });
+    let labelsMov = Object.keys(tiposMov);
+    let dataMov = Object.values(tiposMov);
+    let ctxMov = document.getElementById('grafica-movimientos').getContext('2d');
+    new Chart(ctxMov, {
+        type: 'doughnut',
+        data: {
+            labels: labelsMov,
+            datasets: [{
+                data: dataMov,
+                backgroundColor: ['#43e97b','#5e60ce','#ff2e63','#00cfff','#f7b801','#6a4cff','#ff6f3c','#b9fbc0','#231942','#2d2350']
+            }]
+        },
+        options: {
+            plugins: { legend: { position: 'bottom' } }
+        }
+    });
+    // --- Facturas semanales ---
+    let facturasPorSemana = {};
+    let hoy = new Date();
+    let primerDiaSemana = new Date(hoy.setDate(hoy.getDate() - hoy.getDay() + 1)); // Lunes
+    let facturas = ventas.map(v => v.factura).filter(f => !!f);
+    ventas.forEach(v => {
+        let fecha = new Date(v.fecha.split('/').reverse().join('-'));
+        if (fecha >= primerDiaSemana) {
+            let dia = fecha.toLocaleDateString('es-MX', { weekday: 'short' });
+            if (!facturasPorSemana[dia]) facturasPorSemana[dia] = 0;
+            facturasPorSemana[dia]++;
+        }
+    });
+    let diasSemana = ['lun','mar','mié','jue','vie','sáb','dom'];
+    let dataFacturasSemana = diasSemana.map(d => facturasPorSemana[d] || 0);
+    let ctxFacturas = document.getElementById('grafica-facturas-semana').getContext('2d');
+    new Chart(ctxFacturas, {
+        type: 'bar',
+        data: {
+            labels: diasSemana,
+            datasets: [{
+                label: 'Facturas generadas',
+                data: dataFacturasSemana,
+                backgroundColor: '#ff6f3c'
+            }]
+        },
+        options: {
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+    document.getElementById('total-facturas-semana').textContent = 'Total semana: ' + dataFacturasSemana.reduce((a,b)=>a+b,0);
+    // --- Proveedores ---
+    let proveedores = JSON.parse(localStorage.getItem('proveedores') || '[]');
+    document.getElementById('total-proveedores').textContent = 'Total: ' + proveedores.length;
+    let ctxProv = document.getElementById('grafica-proveedores').getContext('2d');
+    new Chart(ctxProv, {
+        type: 'doughnut',
+        data: {
+            labels: proveedores.map(p=>p.nombre||''),
+            datasets: [{
+                data: proveedores.map(()=>1),
+                backgroundColor: ['#5e60ce','#ff2e63','#00cfff','#f7b801','#6a4cff','#ff6f3c','#b9fbc0','#231942','#2d2350']
+            }]
+        },
+        options: { plugins: { legend: { position: 'bottom' } } }
+    });
+    // --- Clientes ---
+    let clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
+    document.getElementById('total-clientes').textContent = 'Total: ' + clientes.length;
+    let ctxCli = document.getElementById('grafica-clientes').getContext('2d');
+    new Chart(ctxCli, {
+        type: 'doughnut',
+        data: {
+            labels: clientes.map(c=>c.nombre||''),
+            datasets: [{
+                data: clientes.map(()=>1),
+                backgroundColor: ['#43e97b','#5e60ce','#ff2e63','#00cfff','#f7b801','#6a4cff','#ff6f3c','#b9fbc0','#231942','#2d2350']
+            }]
+        },
+        options: { plugins: { legend: { position: 'bottom' } } }
+    });
+    // --- Top Proveedores (a quienes más se compra) ---
+    let comprasPorProveedor = {};
+    compras.forEach(c => {
+        if (c.proveedor) {
+            if (!comprasPorProveedor[c.proveedor]) comprasPorProveedor[c.proveedor] = 0;
+            comprasPorProveedor[c.proveedor] += parseFloat(c.cantidad) || 0;
+        }
+    });
+    let topProveedores = Object.entries(comprasPorProveedor).sort((a,b)=>b[1]-a[1]).slice(0,7);
+    let ctxTopProv = document.getElementById('grafica-top-proveedores').getContext('2d');
+    new Chart(ctxTopProv, {
+        type: 'bar',
+        data: {
+            labels: topProveedores.map(tp=>tp[0]),
+            datasets: [{
+                label: 'Compras',
+                data: topProveedores.map(tp=>tp[1]),
+                backgroundColor: '#5e60ce'
+            }]
+        },
+        options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+    });
+    // --- Top Clientes (a quienes más se vende) ---
+    let ventasPorCliente = {};
+    ventas.forEach(v => {
+        if (v.cliente) {
+            if (!ventasPorCliente[v.cliente]) ventasPorCliente[v.cliente] = 0;
+            ventasPorCliente[v.cliente] += parseFloat(v.cantidad) || 0;
+        }
+    });
+    let topClientes = Object.entries(ventasPorCliente).sort((a,b)=>b[1]-a[1]).slice(0,7);
+    let ctxTopCli = document.getElementById('grafica-top-clientes').getContext('2d');
+    new Chart(ctxTopCli, {
+        type: 'bar',
+        data: {
+            labels: topClientes.map(tc=>tc[0]),
+            datasets: [{
+                label: 'Ventas',
+                data: topClientes.map(tc=>tc[1]),
+                backgroundColor: '#43e97b'
+            }]
+        },
+        options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+    });
+    document.getElementById('exportar-dashboard-pdf').onclick = function() {
+        if (typeof window.jspdf === 'undefined') {
+            alert('jsPDF no está cargado.');
+            return;
+        }
+        const { jsPDF } = window.jspdf;
+        let doc = new jsPDF('l', 'mm', 'a4');
+        doc.setFontSize(18);
+        doc.setTextColor(35,25,66);
+        doc.text('Reporte General del Dashboard', 14, 18);
+        doc.setFontSize(11);
+        doc.setTextColor(90,90,90);
+        doc.text('Fecha de generación: ' + new Date().toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' }), 14, 26);
+        doc.setTextColor(35,25,66);
+        // Captura de gráficas
+        let charts = [
+            { id: 'grafica-inventario', y: 32, label: 'Inventario' },
+            { id: 'grafica-ventas', y: 110, label: 'Ventas' },
+            { id: 'grafica-compras', y: 188, label: 'Compras' },
+            { id: 'grafica-movimientos', y: 266, label: 'Movimientos' },
+            { id: 'grafica-facturas-semana', y: 344, label: 'Facturas semanales' },
+            { id: 'grafica-proveedores', y: 422, label: 'Proveedores' },
+            { id: 'grafica-clientes', y: 500, label: 'Clientes' },
+            { id: 'grafica-top-proveedores', y: 578, label: 'Top Proveedores' },
+            { id: 'grafica-top-clientes', y: 656, label: 'Top Clientes' }
+        ];
+        let y = 32;
+        let page = 1;
+        function addChartToPDF(idx) {
+            if (idx >= charts.length) {
+                // Pie de página
+                let pageCount = doc.internal.getNumberOfPages();
+                for (let i = 1; i <= pageCount; i++) {
+                    doc.setPage(i);
+                    doc.setFontSize(10);
+                    doc.setTextColor(180,180,180);
+                    doc.text('Generado por Mi Empresa | www.miempresa.com', doc.internal.pageSize.getWidth() / 2, doc.internal.pageSize.getHeight() - 8, { align: 'center' });
+                    doc.text('Página ' + i + ' de ' + pageCount, doc.internal.pageSize.getWidth() - 20, doc.internal.pageSize.getHeight() - 8);
+                }
+                doc.save('Dashboard.pdf');
+                return;
+            }
+            let chart = document.getElementById(charts[idx].id);
+            if (!chart) { addChartToPDF(idx+1); return; }
+            let imgData = chart.toDataURL('image/png', 1.0);
+            if (y + 70 > 200) { // Nueva página si se pasa del límite
+                doc.addPage();
+                y = 20;
+                page++;
+            }
+            doc.setFontSize(13);
+            doc.setTextColor(35,25,66);
+            doc.text(charts[idx].label, 14, y+8);
+            doc.addImage(imgData, 'PNG', 14, y+10, 90, 50);
+            y += 70;
+            addChartToPDF(idx+1);
+        }
+        addChartToPDF(0);
+    };
+    </script>
+</body>
+</html>

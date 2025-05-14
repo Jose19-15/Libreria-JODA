@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ventas</title>
+    <link rel="stylesheet" href="../static/styles.css">
+</head>
+<body>
+    <script>
+    if (localStorage.getItem('auth') !== 'ok') {
+        window.location.href = '../login.html';
+    }
+    </script>
+    <a href="../index.html" style="display:inline-block;margin:16px 0 0 16px;padding:8px 18px;background:#231942;color:#fff;border-radius:6px;text-decoration:none;font-weight:bold;">&larr; Volver al inicio</a>
+    <div class="card" style="max-width:900px;margin:40px auto;text-align:center;">
+        <h1>Ventas</h1>
+        <p>Bienvenido a la sección de ventas. Aquí podrás registrar y controlar las ventas.</p>
+        <div id="tabla-ventas"></div>
+    </div>
+    <script>
+    function renderVentas() {
+        let ventas = JSON.parse(localStorage.getItem('ventas') || '[]');
+        if (!ventas.length) {
+            document.getElementById('tabla-ventas').innerHTML = '<p style="color:var(--color-text-muted);">No hay ventas registradas.</p>';
+            return;
+        }
+        let html = `<div style='overflow-x:auto;'><table style="width:100%;margin-top:16px;border-collapse:separate;border-spacing:0 6px;min-width:900px;box-shadow:0 2px 8px 0 rgba(0,0,0,0.10);background:#fff;border-radius:10px;">
+        <thead><tr style='background:linear-gradient(90deg,#b9fbc0,#5e60ce);color:#000;'>
+        <th style='padding:12px 8px;color:#000;'>Fecha</th><th style='padding:12px 8px;color:#000;'>Factura</th><th style='padding:12px 8px;color:#000;'>ID</th><th style='padding:12px 8px;color:#000;'>Producto</th><th style='padding:12px 8px;color:#000;'>Cantidad</th><th style='padding:12px 8px;color:#000;'>Precio</th><th style='padding:12px 8px;color:#000;'>Cliente</th><th style='padding:12px 8px;color:#000;'>Tipo de venta</th></tr></thead><tbody>`;
+        ventas.forEach((v,i) => {
+            html += `<tr ondblclick="mostrarOpcionesVenta(${i})" style='background:${i%2===0?'#f6f6ff':'#fff'};color:#000;cursor:pointer;'>
+                <td style='padding:10px 8px;color:#000;'>${v.fecha ?? ''}</td>
+                <td style='padding:10px 8px;color:#000;'>${v.factura ?? ''}</td>
+                <td style='padding:10px 8px;color:#000;'>${v.id ?? ''}</td>
+                <td style='padding:10px 8px;color:#000;'>${v.producto ?? ''}</td>
+                <td style='padding:10px 8px;color:#000;'>${v.cantidad ?? ''}</td>
+                <td style='padding:10px 8px;color:#000;'>${v.precio ?? ''}</td>
+                <td style='padding:10px 8px;color:#000;'>${v.cliente ?? ''}</td>
+                <td style='padding:10px 8px;color:#000;'>${v.tipo ?? ''}</td>
+            </tr>`;
+        });
+        html += '</tbody></table></div>';
+        document.getElementById('tabla-ventas').innerHTML = html;
+    }
+
+    function mostrarOpcionesVenta(idx) {
+        let ventas = JSON.parse(localStorage.getItem('ventas') || '[]');
+        let v = ventas[idx];
+        let modalHtml = `<div id='modal-opciones' style='position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center;z-index:1000;'>
+            <div style='background:#fff;padding:32px 24px;border-radius:10px;box-shadow:0 2px 16px 0 rgba(0,0,0,0.18);display:flex;flex-direction:column;gap:18px;min-width:320px;'>
+                <h2 style='margin-bottom:8px;'>¿Qué deseas hacer con esta venta?</h2>
+                <button id='btn-editar-venta' style='background:#ffd60a;color:#231942;padding:10px 0;border:none;border-radius:6px;font-size:1rem;font-weight:bold;cursor:pointer;'>Editar</button>
+                <button id='btn-eliminar-venta' style='background:#e63946;color:#fff;padding:10px 0;border:none;border-radius:6px;font-size:1rem;font-weight:bold;cursor:pointer;'>Eliminar</button>
+                <button onclick='cerrarModalVenta()' style='background:#adb5bd;color:#231942;padding:8px 0;border:none;border-radius:6px;font-size:1rem;font-weight:bold;cursor:pointer;'>Cancelar</button>
+                <div id='mensaje-confirmacion' style='display:none;margin-top:10px;color:#219653;font-weight:bold;'></div>
+            </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        document.getElementById('btn-editar-venta').onclick = function() {
+            cerrarModalVenta();
+            editarVenta(idx);
+        };
+        document.getElementById('btn-eliminar-venta').onclick = function() {
+            if (!confirm('¿Seguro que deseas eliminar esta venta?')) return;
+            ventas.splice(idx, 1);
+            localStorage.setItem('ventas', JSON.stringify(ventas));
+            document.getElementById('mensaje-confirmacion').textContent = 'Venta eliminada correctamente.';
+            document.getElementById('mensaje-confirmacion').style.display = 'block';
+            setTimeout(() => {
+                cerrarModalVenta();
+                renderVentas();
+            }, 1200);
+        };
+    }
+
+    function cerrarModalVenta() {
+        let modal = document.getElementById('modal-opciones');
+        if (modal) modal.remove();
+        let modalEdit = document.getElementById('modal-edit-venta');
+        if (modalEdit) modalEdit.remove();
+    }
+    function editarVenta(idx) {
+        let ventas = JSON.parse(localStorage.getItem('ventas') || '[]');
+        let v = ventas[idx];
+        let formHtml = `<div id='modal-edit-venta' style='position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center;z-index:1000;'>
+            <form id='form-edit-venta' style='background:#fff;padding:32px 24px;border-radius:10px;box-shadow:0 2px 16px 0 rgba(0,0,0,0.18);display:flex;flex-direction:column;gap:14px;min-width:320px;'>
+                <h2 style='margin-bottom:8px;'>Editar venta</h2>
+                <input type='text' id='edit-fecha' value='${v.fecha ?? ''}' placeholder='Fecha' required style='padding:8px;'>
+                <input type='text' id='edit-factura' value='${v.factura ?? ''}' placeholder='Factura' required style='padding:8px;'>
+                <input type='text' id='edit-id' value='${v.id ?? ''}' placeholder='ID' required style='padding:8px;'>
+                <input type='text' id='edit-producto' value='${v.producto ?? ''}' placeholder='Producto' required style='padding:8px;'>
+                <input type='number' id='edit-cantidad' value='${v.cantidad ?? ''}' placeholder='Cantidad' required style='padding:8px;'>
+                <input type='number' id='edit-precio' value='${v.precio ?? ''}' placeholder='Precio' required style='padding:8px;'>
+                <input type='text' id='edit-cliente' value='${v.cliente ?? ''}' placeholder='Cliente' required style='padding:8px;'>
+                <input type='text' id='edit-tipo' value='${v.tipo ?? ''}' placeholder='Tipo de venta' required style='padding:8px;'>
+                <div style='display:flex;gap:12px;justify-content:flex-end;'>
+                    <button type='button' onclick='cerrarModalVenta()' style='background:#e63946;color:#fff;padding:8px 18px;border:none;border-radius:6px;'>Cancelar</button>
+                    <button type='submit' style='background:#5e60ce;color:#fff;padding:8px 18px;border:none;border-radius:6px;'>Guardar</button>
+                </div>
+            </form>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', formHtml);
+        document.getElementById('form-edit-venta').onsubmit = function(e) {
+            e.preventDefault();
+            ventas[idx] = {
+                fecha: document.getElementById('edit-fecha').value,
+                factura: document.getElementById('edit-factura').value,
+                id: document.getElementById('edit-id').value,
+                producto: document.getElementById('edit-producto').value,
+                cantidad: document.getElementById('edit-cantidad').value,
+                precio: document.getElementById('edit-precio').value,
+                cliente: document.getElementById('edit-cliente').value,
+                tipo: document.getElementById('edit-tipo').value
+            };
+            localStorage.setItem('ventas', JSON.stringify(ventas));
+            cerrarModalVenta();
+            renderVentas();
+        };
+    }
+    document.addEventListener('DOMContentLoaded', renderVentas);
+    window.addEventListener('storage', function(e) {
+        if (e.key === 'ventas') renderVentas();
+    });
+    </script>
+</body>
+</html>

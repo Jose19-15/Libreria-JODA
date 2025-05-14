@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Facturación</title>
+    <link rel="stylesheet" href="../static/styles.css">
+</head>
+<body>
+    <script>
+    if (localStorage.getItem('auth') !== 'ok') {
+        window.location.href = '../login.html';
+    }
+    </script>
+    <a href="../index.html" style="display:inline-block;margin:16px 0 0 16px;padding:8px 18px;background:#231942;color:#fff;border-radius:6px;text-decoration:none;font-weight:bold;">&larr; Volver al inicio</a>
+    <div class="card" style="max-width:900px;margin:40px auto 24px auto;">
+        <div style="display:flex;align-items:center;gap:24px;">
+            <img src="../icons/factura.png" alt="Logo" style="width:80px;height:80px;object-fit:contain;">
+            <div style="flex:1;">
+                <h2 id="empresa-nombre" style="margin:0;color:#231942;">Mi Empresa</h2>
+                <div id="empresa-datos" style="font-size:1rem;color:#231942;">
+                    Dirección: Calle Principal 123, Ciudad<br>
+                    Teléfono: 555-123-4567<br>
+                    Correo: contacto@miempresa.com
+                </div>
+            </div>
+            <div style="text-align:right;">
+                <div style="font-weight:bold;color:#5e60ce;">Factura N° <span id="factura-numero"></span></div>
+                <div id="factura-fecha"></div>
+            </div>
+        </div>
+        <hr style="margin:18px 0;">
+        <form id="form-factura" style="margin-bottom:18px;">
+            <fieldset style="border:none;padding:0;margin:0 0 18px 0;">
+                <legend style="font-weight:bold;color:#5e60ce;">Datos del Cliente</legend>
+                <div style="display:flex;flex-wrap:wrap;gap:18px;align-items:end;">
+                    <div style="flex:1 1 180px;">
+                        <label>Nombre<br><input type="text" id="cliente-nombre" name="cliente-nombre" required style="width:100%;padding:7px 8px;border-radius:6px;border:1px solid #bbb;"></label>
+                    </div>
+                    <div style="flex:1 1 180px;">
+                        <label>Dirección<br><input type="text" id="cliente-direccion" name="cliente-direccion" style="width:100%;padding:7px 8px;border-radius:6px;border:1px solid #bbb;"></label>
+                    </div>
+                    <div style="flex:1 1 140px;">
+                        <label>Teléfono<br><input type="text" id="cliente-telefono" name="cliente-telefono" style="width:100%;padding:7px 8px;border-radius:6px;border:1px solid #bbb;"></label>
+                    </div>
+                    <div style="flex:1 1 180px;">
+                        <label>Correo<br><input type="text" id="cliente-correo" name="cliente-correo" style="width:100%;padding:7px 8px;border-radius:6px;border:1px solid #bbb;"></label>
+                    </div>
+                </div>
+            </fieldset>
+            <fieldset style="border:none;padding:0;margin:0 0 18px 0;">
+                <legend style="font-weight:bold;color:#5e60ce;">Agregar Producto</legend>
+                <div style="display:flex;gap:18px;align-items:end;">
+                    <div style="flex:1 1 100px;">
+                        <label>ID Producto<br><input type="number" id="prod-id" min="0" style="width:100%;padding:7px 8px;border-radius:6px;border:1px solid #bbb;"></label>
+                    </div>
+                    <div style="flex:1 1 100px;">
+                        <label>Cantidad<br><input type="number" id="prod-cantidad" min="1" value="1" style="width:100%;padding:7px 8px;border-radius:6px;border:1px solid #bbb;"></label>
+                    </div>
+                    <div style="flex:1 1 180px;">
+                        <label>Tipo de venta<br>
+                            <select id="tipo-venta" name="tipo-venta" style="width:100%;padding:7px 8px;border-radius:6px;border:1px solid #bbb;">
+                                <option value="Contado">Al contado</option>
+                                <option value="Credito">Al crédito</option>
+                                <option value="Transferencia">Transferencia</option>
+                            </select>
+                        </label>
+                    </div>
+                    <button type="button" id="agregar-producto" class="button">Agregar</button>
+                </div>
+            </fieldset>
+        </form>
+        <div id="tabla-productos-factura"></div>
+        <div style="margin:18px 0 0 0;text-align:right;font-size:1.1rem;font-weight:bold;color:#231942;">Total: $<span id="factura-total">0.00</span></div>
+        <div style="margin:24px 0 0 0;text-align:center;color:#43e97b;font-size:1.1rem;font-weight:bold;">¡Gracias por su compra!</div>
+        <div style="text-align:right;margin-top:18px;">
+            <button id="generar-pdf" class="button" style="padding:10px 28px;">Generar PDF</button>
+        </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <script>
+    // --- Datos de empresa (puedes personalizar aquí) ---
+    const EMPRESA = {
+        nombre: 'Mi Empresa',
+        direccion: 'Calle Principal 123, Ciudad',
+        telefono: '555-123-4567',
+        correo: 'contacto@miempresa.com'
+    };
+    // --- Número de factura automático ---
+    function getNextFacturaNumber() {
+        let last = parseInt(localStorage.getItem('factura_numero') || '1000');
+        last++;
+        localStorage.setItem('factura_numero', last);
+        return last;
+    }
+    // --- Cargar datos de clientes ---
+    let clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
+    // --- Cargar inventario ---
+    let inventario = JSON.parse(localStorage.getItem('inventario') || '[]');
+    // --- Productos de la factura ---
+    let productosFactura = [];
+    // --- Inicializar datos de empresa y factura ---
+    document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('empresa-nombre').textContent = EMPRESA.nombre;
+        document.getElementById('empresa-datos').innerHTML = `Dirección: ${EMPRESA.direccion}<br>Teléfono: ${EMPRESA.telefono}<br>Correo: ${EMPRESA.correo}`;
+        const numFactura = getNextFacturaNumber();
+        document.getElementById('factura-numero').textContent = numFactura;
+        document.getElementById('factura-fecha').textContent = new Date().toLocaleDateString();
+        // --- Autocompletar datos de cliente ---
+        document.getElementById('cliente-nombre').addEventListener('input', function() {
+            const nombre = this.value.trim().toLowerCase();
+            const cliente = clientes.find(c => (c.nombre||'').trim().toLowerCase() === nombre);
+            document.getElementById('cliente-direccion').value = cliente ? (cliente.direccion||'') : '';
+            document.getElementById('cliente-telefono').value = cliente ? (cliente.telefono||'') : '';
+            document.getElementById('cliente-correo').value = cliente ? (cliente.email||'') : '';
+        });
+        // --- Agregar cliente desde factura ---
+        document.getElementById('cliente-nombre').addEventListener('blur', function() {
+            const nombre = this.value.trim();
+            if (!nombre) return;
+            const clienteExistente = clientes.find(c => (c.nombre||'').trim().toLowerCase() === nombre.toLowerCase());
+            if (!clienteExistente) {
+                // Si algún campo está lleno, lo tomamos para el nuevo cliente
+                const nuevoCliente = {
+                    nombre: nombre,
+                    direccion: document.getElementById('cliente-direccion').value,
+                    telefono: document.getElementById('cliente-telefono').value,
+                    email: document.getElementById('cliente-correo').value
+                };
+                if (nuevoCliente.direccion || nuevoCliente.telefono || nuevoCliente.email) {
+                    clientes.push(nuevoCliente);
+                    localStorage.setItem('clientes', JSON.stringify(clientes));
+                }
+            }
+        });
+        // --- Agregar producto a la factura ---
+        function renderTablaProductosFactura() {
+            let html = `<table style='width:100%;margin-top:12px;background:#fff;color:#231942;border-radius:8px;'><thead><tr style='background:#b9fbc0;color:#231942;'><th>ID</th><th>Producto</th><th>Cantidad</th><th>Precio Unitario</th><th>Subtotal</th><th></th></tr></thead><tbody>`;
+            let total = 0;
+            productosFactura.forEach((p,i) => {
+                let subtotal = (p.precio * p.cantidad);
+                total += subtotal;
+                html += `<tr><td>${p.id}</td><td>${p.producto}</td><td>${p.cantidad}</td><td>$${p.precio.toFixed(2)}</td><td>$${subtotal.toFixed(2)}</td><td><button data-i='${i}' class='btn-quitar' style='color:#ff2e63;background:none;border:none;font-weight:bold;cursor:pointer;'>Quitar</button></td></tr>`;
+            });
+            html += '</tbody></table>';
+            document.getElementById('tabla-productos-factura').innerHTML = html;
+            document.getElementById('factura-total').textContent = total.toFixed(2);
+            document.querySelectorAll('.btn-quitar').forEach(btn => {
+                btn.onclick = function() {
+                    productosFactura.splice(parseInt(this.getAttribute('data-i')),1);
+                    renderTablaProductosFactura();
+                };
+            });
+        }
+        document.getElementById('agregar-producto').onclick = function() {
+            const id = document.getElementById('prod-id').value;
+            const cantidad = parseInt(document.getElementById('prod-cantidad').value);
+            if (!id || !cantidad || cantidad < 1) return;
+            const prod = inventario.find(p => String(p.id) === String(id));
+            if (!prod) { alert('Producto no encontrado'); return; }
+            productosFactura.push({
+                id: prod.id,
+                producto: prod.producto,
+                cantidad: cantidad,
+                precio: parseFloat(prod['precio de venta'] || prod['precio de compra'] || 0)
+            });
+            renderTablaProductosFactura();
+        };
+        // --- Generar PDF y guardar en carpeta Factura ---
+        document.getElementById('generar-pdf').onclick = function() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            // Encabezado
+            doc.addImage('../icons/factura.png', 'PNG', 10, 8, 24, 24);
+            doc.setFontSize(16);
+            doc.text(EMPRESA.nombre, 38, 16);
+            doc.setFontSize(10);
+            doc.text(`Dirección: ${EMPRESA.direccion}`, 38, 22);
+            doc.text(`Teléfono: ${EMPRESA.telefono}`, 38, 27);
+            doc.text(`Correo: ${EMPRESA.correo}`, 38, 32);
+            doc.setFontSize(12);
+            doc.text(`Factura N°: ${numFactura}`, 160, 16);
+            doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 160, 22);
+            // Cliente
+            doc.setFontSize(11);
+            doc.text('Cliente:', 10, 42);
+            doc.text(`Nombre: ${document.getElementById('cliente-nombre').value}`, 10, 48);
+            doc.text(`Dirección: ${document.getElementById('cliente-direccion').value}`, 10, 54);
+            doc.text(`Teléfono: ${document.getElementById('cliente-telefono').value}`, 10, 60);
+            doc.text(`Correo: ${document.getElementById('cliente-correo').value}`, 10, 66);
+            // Productos
+            const columns = ['ID','Producto','Cantidad','Precio Unitario','Subtotal'];
+            const rows = productosFactura.map(p => [p.id, p.producto, p.cantidad, `$${p.precio.toFixed(2)}`, `$${(p.precio*p.cantidad).toFixed(2)}`]);
+            doc.autoTable({ head: [columns], body: rows, startY: 72, styles: { fontSize: 10, textColor: [35,25,66] }, headStyles: { fillColor: [185,251,192], textColor: [35,25,66] } });
+            // Total y agradecimiento
+            let finalY = doc.lastAutoTable.finalY || 72;
+            doc.setFontSize(12);
+            doc.text(`Total: $${document.getElementById('factura-total').textContent}`, 160, finalY+10);
+            doc.setFontSize(11);
+            doc.setTextColor(67,233,123);
+            doc.text('¡Gracias por su compra!', 10, finalY+20);
+            // Guardar PDF en carpeta Factura (descarga en navegador, el usuario debe moverlo si es necesario)
+            doc.save(`../factura/Factura_${numFactura}.pdf`);
+            // Registrar ventas
+            const fecha = new Date().toLocaleDateString();
+            let ventas = JSON.parse(localStorage.getItem('ventas') || '[]');
+            const cliente = document.getElementById('cliente-nombre').value;
+            const tipoVenta = document.getElementById('tipo-venta').value;
+            // --- RESTAR STOCK EN INVENTARIO ---
+            let inventario = JSON.parse(localStorage.getItem('inventario') || '[]');
+            productosFactura.forEach(p => {
+                // Registrar venta
+                ventas.push({
+                    fecha: fecha,
+                    factura: numFactura,
+                    id: p.id,
+                    producto: p.producto,
+                    cantidad: p.cantidad,
+                    precio: p.precio,
+                    cliente: cliente,
+                    tipo: tipoVenta
+                });
+                // Restar stock
+                let prodInv = inventario.find(inv => String(inv.id) === String(p.id));
+                if (prodInv) {
+                    prodInv.cantidad = (parseInt(prodInv.cantidad) || 0) - parseInt(p.cantidad);
+                    if (prodInv.cantidad < 0) prodInv.cantidad = 0;
+                }
+            });
+            localStorage.setItem('ventas', JSON.stringify(ventas));
+            localStorage.setItem('inventario', JSON.stringify(inventario));
+            // Limpiar formulario y actualizar número de factura
+            setTimeout(() => {
+                // Limpiar campos de cliente
+                document.getElementById('cliente-nombre').value = '';
+                document.getElementById('cliente-direccion').value = '';
+                document.getElementById('cliente-telefono').value = '';
+                document.getElementById('cliente-correo').value = '';
+                // Limpiar productos
+                productosFactura.length = 0;
+                renderTablaProductosFactura();
+                // Actualizar número de factura y fecha
+                const nuevoNum = getNextFacturaNumber();
+                document.getElementById('factura-numero').textContent = nuevoNum;
+                document.getElementById('factura-fecha').textContent = new Date().toLocaleDateString();
+            }, 500);
+        };
+        // Inicializar tabla vacía
+        renderTablaProductosFactura();
+    });
+    </script>
+</body>
+</html>
+``` 
